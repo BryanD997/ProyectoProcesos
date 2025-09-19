@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador de Procesos</title>
+</head>
+<body>
+    <div class="content">
+        <div class="form-section">
+            <h2>Configuración del Algoritmo</h2>
+            
+            <div class="form-group">
+                <label for="algoritmo">Algoritmo de Planificación:</label>
+                <select id="algoritmo" onchange="alternarEntradaQuantum()">
+                    <option value="">Selecciona un algoritmo</option>
+                    <option value="fcfs">FCFS (First Come First Served)</option>
+                    <option value="sjf">SJF (Shortest Job First)</option>
+                    <option value="prioridad">Por Prioridad</option>
+                    <option value="roundrobin">Round Robin</option>
+                </select>
+            </div>
+            
+            <div class="quantum-input" id="entradaQuantum" style="display: none;">
+                <label for="quantum">Quantum de Tiempo:</label>
+                <input type="number" id="quantum" min="1" value="3" placeholder="Ingresa el quantum">
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Agregar Procesos</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="file" id="entradaArchivoExcel" accept=".xlsx, .xls" style="display: none;">
+                <button class="btn btn-import" onclick="document.getElementById('entradaArchivoExcel').click()">Importar desde Excel</button>
+            </div>
+            
+            <div class="process-inputs">
+                <div class="form-group">
+                    <label for="nombreProceso">Nombre del Proceso:</label>
+                    <input type="text" id="nombreProceso" placeholder="P1, P2, etc.">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tiempo">Tiempo:</label>
+                    <input type="number" id="tiempo" min="1" placeholder="5">
+                </div>
+            </div>
+            
+            
+            <div class="form-group" id="grupoPrioridad" style="display: none;">
+                <label for="prioridad">Prioridad (menor número = mayor prioridad):</label>
+                <input type="number" id="prioridad" min="1" placeholder="1">
+            </div>
+            
+            <button class="btn btn-add" onclick="agregarProceso()">Agregar Proceso</button>
+            <button class="btn btn-remove" onclick="eliminarUltimoProceso()" id="btnEliminar" disabled>Eliminar Último</button>
+            
+            <div class="process-list" id="listaProcesos">
+                <p style="text-align: center; color: #666; font-style: italic;">No hay procesos agregados</p>
+            </div>
+            
+            <button class="btn btn-simulate" onclick="simular()" id="btnSimular" disabled>Simular Planificación</button>
+        </div>
+    </div>
+
+    <div class="results-section" id="seccionResultados" style="display: none;">
+        <h2>Resultados de la Simulación</h2>
+        <div id="contenidoResultados"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.getElementById('entradaArchivoExcel').addEventListener('change', manejarImportacionExcel);
+        
+        function manejarImportacionExcel(evento) {
+            const archivo = evento.target.files[0];
+            if (!archivo) return;
+            
+            const lector = new FileReader();
+            lector.onload = function(e) {
+                const datos = new Uint8Array(e.target.result);
+                const libro = XLSX.read(datos, { type: 'array' });
+                
+                const primeraHoja = libro.Sheets[libro.SheetNames[0]];
+                const datosJSON = XLSX.utils.sheet_to_json(primeraHoja);
+                
+                importarProcesosDesdeExcel(datosJSON);
+            };
+            lector.readAsArrayBuffer(archivo);
+        }
+        
+        function importarProcesosDesdeExcel(datos) {
+            if (!datos || datos.length === 0) {
+                alert('El archivo no contiene datos válidos');
+                return;
+            }
+            
+            listaProcesos = [];
+            
+            datos.forEach(fila => {
+                const nombre = fila.Nombre || fila.Proceso || `P${contador++}`;
+                const tiempo = parseInt(fila.Tiempo || fila.Burst);
+                const algoritmo = document.getElementById("algoritmo").value;
+                const prioridad = (algoritmo === "prioridad") ? parseInt(fila.Prioridad || 1) : null;
+                
+                if (!isNaN(tiempo) && tiempo > 0) {
+                    listaProcesos.push(new Proceso(nombre, tiempo, prioridad));
+                }
+            });
+
+            actualizarListaProcesos();
+            document.getElementById("btnSimular").disabled = listaProcesos.length === 0;
+            document.getElementById("btnEliminar").disabled = listaProcesos.length === 0;
+
+            document.getElementById('entradaArchivoExcel').value = '';
+            
+            alert(`Se importaron ${listaProcesos.length} procesos desde el archivo Excel`);
+        }
+    </script>
+</body>
+</html>
